@@ -171,7 +171,7 @@
           "server_role=puppetmaster\n",
           "EOF\n",
 
-          "cat > /etc/facter/facts.d/puppet_database.txt\n",
+          "cat > /etc/facter/facts.d/puppet_database.txt << EOF\n",
           "puppetmaster_db_name=", { "Ref": "DBName" }, "\n",
           "puppetmaster_db_user=", { "Ref": "DBUsername" }, "\n",
           "puppetmaster_db_password=", { "Ref": "DBPassword" }, "\n",
@@ -189,9 +189,11 @@
           "  - '/etc/puppet/environments'\n",
           "EOF\n",
           
-          "base64 -d ", { "Ref": "HieraPrivateKey" }, " > /etc/puppet/private_key.pkcs7.pem << EOF\n",
+          "mkdir -p /etc/puppet/ >> /var/log/cloud-user-script.log 2>&1\n",
+          
+          "echo ", { "Ref": "HieraPrivateKey" }, " |  base64 -d > /etc/puppet/private_key.pkcs7.pem\n",
 
-          "base64 -d ", { "Ref": "HieraPublicKey" }, " > /etc/puppet/public_key.pkcs7.pem << EOF\n",
+          "echo ", { "Ref": "HieraPublicKey" }, " | base64 -d  > /etc/puppet/public_key.pkcs7.pem\n",
 
           "cat > /tmp/puppet.pp << EOF\n",
           "class { 'puppet':\n",
@@ -218,7 +220,7 @@
           "export LC_ALL=en_US.utf8\n",
           "export LANG=en_US.utf8\n",
           "export >> /var/log/cloud-user-script.log\n",
-          "apt-get install -y unattended-upgrades puppetmaster git rubygems >> /var/log/cloud-user-script.log 2>&1\n",
+          "apt-get install -y unattended-upgrades puppetmaster git rubygems ruby-systemu ruby-log4r >> /var/log/cloud-user-script.log 2>&1\n",
           "gem install r10k >> /var/log/cloud-user-script.log 2>&1\n",
  
           "/usr/local/bin/r10k deploy environment >> /var/log/cloud-user-script.log 2>&1\n",
@@ -276,7 +278,7 @@
     "PuppetmasterSecurityGroup" : {
       "Type" : "AWS::EC2::SecurityGroup",
       "Properties" : {
-        "GroupDescription" : "Enable HTTP access via port 80 and SSH access",
+        "GroupDescription" : "Enable HTTP access via port 8140 and SSH access",
         "SecurityGroupIngress" : [
           {"IpProtocol" : "tcp", "FromPort" : "8140", "ToPort" : "8140", "CidrIp" : "0.0.0.0/0"},
           {"IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" : "0.0.0.0/0"}
