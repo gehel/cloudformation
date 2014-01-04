@@ -1,0 +1,287 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+  "Description" : "A template to create a single Puppet Master",
+  "Parameters" : {
+
+  	"KeyName": {
+      "Description" : "Name of an existing EC2 KeyPair to enable SSH access to the instances",
+      "Type": "String",
+      "Default" : "global", 
+      "MinLength": "1",
+      "MaxLength": "255",
+      "AllowedPattern" : "[\\x20-\\x7E]*",
+      "ConstraintDescription" : "can contain only ASCII characters."
+    },
+    
+    "DNSName": {
+      "Description" : "DNS name of the puppet master",
+      "Type": "String",
+      "Default" : "puppet.aws.ledcom.ch", 
+      "MinLength": "1",
+      "MaxLength": "255",
+      "AllowedPattern" : "[a-zA-Z\\.]*",
+      "ConstraintDescription" : "can contain only letters and point."
+    }, 
+    
+    "DNSHostedZoneName": {
+      "Description" : "DNS zone in which to create entries",
+      "Type": "String",
+      "Default" : "aws.ledcom.ch.", 
+      "MinLength": "1",
+      "MaxLength": "255",
+      "AllowedPattern" : "[a-zA-Z\\.]*",
+      "ConstraintDescription" : "can contain only letters and point."
+    }, 
+    
+    "PuppetmasterGitRepo": {
+      "Description" : "URL of the Git repository containing the puppet master modules",
+      "Type": "String",
+      "Default" : "https://github.com/gehel/puppetmaster.git", 
+      "MinLength": "1",
+      "MaxLength": "255"
+    },
+    
+    "HieraPrivateKey": {
+      "Description" : "Hiera private key, encoded with 'base64 -w 0'",
+      "NoEcho": "true",
+      "Type": "String",
+      "Default" : "", 
+      "MinLength": "0",
+      "MaxLength": "4000"
+    },
+
+    "HieraPublicKey": {
+      "Description" : "Hiera public key, encoded with 'base64 -w 0'",
+      "Type": "String",
+      "Default" : "", 
+      "MinLength": "0",
+      "MaxLength": "4000"
+    }, 
+    
+    "InstanceType" : {
+      "Description" : "WebServer EC2 instance type",
+      "Type" : "String",
+      "Default" : "m1.small",
+      "AllowedValues" : [ "t1.micro","m1.small","m1.medium","m1.large","m1.xlarge","m2.xlarge","m2.2xlarge","m2.4xlarge","m3.xlarge","m3.2xlarge","c1.medium","c1.xlarge","cc1.4xlarge","cc2.8xlarge","cg1.4xlarge"],
+      "ConstraintDescription" : "must be a valid EC2 instance type."
+    },
+
+    "DBClass" : {
+      "Default" : "db.m1.small",
+      "Description" : "Database instance class",
+      "Type" : "String",
+      "AllowedValues" : [ "db.m1.small", "db.m1.large", "db.m1.xlarge", "db.m2.xlarge", "db.m2.2xlarge", "db.m2.4xlarge" ],
+      "ConstraintDescription" : "must select a valid database instance type."
+    },
+
+    "DBName" : {
+      "Default": "puppet",
+      "Description" : "The Puppet database name",
+      "Type": "String",
+      "MinLength": "1",
+      "MaxLength": "64",
+      "AllowedPattern" : "[a-zA-Z][a-zA-Z0-9]*",
+      "ConstraintDescription" : "must begin with a letter and contain only alphanumeric characters."
+    },
+
+    "DBUsername" : {
+      "Default": "puppet",
+      "Description" : "The Puppet database account username",
+      "Type": "String",
+      "MinLength": "1",
+      "MaxLength": "16",
+      "AllowedPattern" : "[a-zA-Z][a-zA-Z0-9]*",
+      "ConstraintDescription" : "must begin with a letter and contain only alphanumeric characters."
+    },
+
+    "DBPassword" : {
+      "Default": "password",
+      "NoEcho": "true",
+      "Description" : "The Puppet database account password",
+      "Type": "String",
+      "MinLength": "8",
+      "MaxLength": "41",
+      "AllowedPattern" : "[a-zA-Z0-9]*",
+      "ConstraintDescription" : "must contain only alphanumeric characters."
+    },
+
+    "DBAllocatedStorage" : {
+      "Default": "5",
+      "Description" : "The size of the database (Gb)",
+      "Type": "Number",
+      "MinValue": "5",
+      "MaxValue": "1024",
+      "ConstraintDescription" : "must be between 5 and 1024Gb."
+    }
+  },
+  
+  "Mappings" : {
+    "AWSInstanceType2Arch" : {
+      "t1.micro"    : { "Arch" : "64" },
+      "m1.small"    : { "Arch" : "64" },
+      "m1.medium"   : { "Arch" : "64" },
+      "m1.large"    : { "Arch" : "64" },
+      "m1.xlarge"   : { "Arch" : "64" },
+      "m2.xlarge"   : { "Arch" : "64" },
+      "m2.2xlarge"  : { "Arch" : "64" },
+      "m2.4xlarge"  : { "Arch" : "64" },
+      "m3.xlarge"   : { "Arch" : "64" },
+      "m3.2xlarge"  : { "Arch" : "64" },
+      "c1.medium"   : { "Arch" : "64" },
+      "c1.xlarge"   : { "Arch" : "64" },
+      "cc1.4xlarge" : { "Arch" : "64HVM" },
+      "cc2.8xlarge" : { "Arch" : "64HVM" },
+      "cg1.4xlarge" : { "Arch" : "64HVM" }
+    },
+
+    "AWSRegionArch2AMI" : {
+      "us-east-1"      : { "32" : "ami-33a68f5a", "64" : "ami-0da18864", "64HVM" : "NOT_YET_SUPPORTED" },
+      "us-west-1"      : { "32" : "ami-8ebd8dcb", "64" : "ami-96bd8dd3", "64HVM" : "NOT_YET_SUPPORTED" },
+      "us-west-2"      : { "32" : "ami-6a98fc5a", "64" : "ami-7298fc42", "64HVM" : "NOT_YET_SUPPORTED" },
+      "eu-west-1"      : { "32" : "ami-66836b11", "64" : "ami-8e826af9", "64HVM" : "NOT_YET_SUPPORTED" },
+      "ap-southeast-1" : { "32" : "ami-28efbb7a", "64" : "ami-20efbb72", "64HVM" : "NOT_YET_SUPPORTED" },
+      "ap-southeast-2" : { "32" : "ami-7774eb4d", "64" : "ami-7b74eb41", "64HVM" : "NOT_YET_SUPPORTED" },
+      "ap-northeast-1" : { "32" : "ami-53a0c252", "64" : "ami-17a0c216", "64HVM" : "NOT_YET_SUPPORTED" },
+      "sa-east-1"      : { "32" : "ami-8f4fee92", "64" : "ami-954fee88", "64HVM" : "NOT_YET_SUPPORTED" }
+    }
+  },
+  
+  "Resources" : {
+  	"Puppetmaster" : {
+      "Type" : "AWS::EC2::Instance",
+      "Properties" : {
+        "ImageId" : { "Fn::FindInMap" : [
+                        "AWSRegionArch2AMI",
+                        { "Ref" : "AWS::Region" },
+                        { "Fn::FindInMap" : [
+                          "AWSInstanceType2Arch",
+                          { "Ref" : "InstanceType" },
+                          "Arch"
+                        ]}
+                      ]},
+        "InstanceType"   : { "Ref" : "InstanceType" },
+        "SecurityGroups" : [ {"Ref" : "PuppetmasterSecurityGroup"} ],
+        "KeyName"        : { "Ref" : "KeyName" },
+        "UserData"       : { "Fn::Base64" : { "Fn::Join" : ["", [
+          "#!/bin/bash\n",
+          
+          "# create a few needed files >> /var/log/cloud-user-script.log 2>&1\n",
+          "mkdir -p /etc/facter/facts.d/ >> /var/log/cloud-user-script.log 2>&1\n",
+          "cat > /etc/facter/facts.d/server_role.txt << EOF\n",
+          "server_role=puppetmaster\n",
+          "EOF\n",
+
+          "cat > /etc/facter/facts.d/puppet_database.txt\n",
+          "puppetmaster_db_name=", { "Ref": "DBName" }, "\n",
+          "puppetmaster_db_user=", { "Ref": "DBUsername" }, "\n",
+          "puppetmaster_db_password=", { "Ref": "DBPassword" }, "\n",
+          "puppetmaster_db_server=", {"Fn::GetAtt" : ["PuppetmasterDB", "Endpoint.Address"]}, "\n",
+          "puppetmaster_db_port=", {"Fn::GetAtt" : ["PuppetmasterDB", "Endpoint.Port"]}, "\n",
+          "EOF\n",
+
+          "cat > /etc/r10k.yaml << EOF\n",
+          ":cachedir: '/var/cache/r10k'\n",
+          ":sources:\n",
+          "  :plops:\n",
+          "    remote: '", { "Ref": "PuppetmasterGitRepo" }, "'\n",
+          "    basedir: '/etc/puppet/environments'\n",
+          ":purgedirs:\n",
+          "  - '/etc/puppet/environments'\n",
+          "EOF\n",
+          
+          "base64 -d ", { "Ref": "HieraPrivateKey" }, " > /etc/puppet/private_key.pkcs7.pem << EOF\n",
+
+          "base64 -d ", { "Ref": "HieraPublicKey" }, " > /etc/puppet/public_key.pkcs7.pem << EOF\n",
+
+          "cat > /tmp/puppet.pp << EOF\n",
+          "class { 'puppet':\n",
+          "  mode          => 'server',\n",
+          "  server        => '", { "Ref": "DNSName" }, "',\n",
+          "  dns_alt_names => '", { "Ref": "DNSName" }, "',\n",
+          "  environment   => 'production',\n",
+          "  manifest_path => '\\$confdir/environments/\\$environment/site/site.pp',\n",
+          "  module_path   => '\\$confdir/environments/\\$environment/modules:\\$confdir/environments/\\$environment/dist',\n",
+          "}\n",
+          "EOF\n",
+
+          "echo \"127.0.0.1       ", { "Ref": "DNSName" }, "\" >> /etc/hosts\n",
+
+          "# make sure everything is up to date\n",
+          "wget http://apt.puppetlabs.com/puppetlabs-release-wheezy.deb >> /var/log/cloud-user-script.log 2>&1\n",
+          "dpkg -i puppetlabs-release-wheezy.deb >> /var/log/cloud-user-script.log 2>&1\n",
+          "apt-get update >> /var/log/cloud-user-script.log 2>&1\n",
+          "apt-get dist-upgrade -y >> /var/log/cloud-user-script.log 2>&1\n",
+ 
+          "# install puppet and dependencies\n",
+          "/usr/sbin/locale-gen enUS.utf8\n",
+          "export LANGUAGE=en_US.utf8\n",
+          "export LC_ALL=en_US.utf8\n",
+          "export LANG=en_US.utf8\n",
+          "export >> /var/log/cloud-user-script.log\n",
+          "apt-get install -y unattended-upgrades puppetmaster git rubygems >> /var/log/cloud-user-script.log 2>&1\n",
+          "gem install r10k >> /var/log/cloud-user-script.log 2>&1\n",
+ 
+          "/usr/local/bin/r10k deploy environment >> /var/log/cloud-user-script.log 2>&1\n",
+ 
+          "# puppet run to ensure basic configuration >> /var/log/cloud-user-script.log 2>&1\n",
+          "service puppetmaster stop >> /var/log/cloud-user-script.log 2>&1\n",
+          "puppet apply --modulepath=/etc/puppet/environments/production/modules /tmp/puppet.pp >> /var/log/cloud-user-script.log 2>&1\n",
+          "rm /tmp/puppet.pp >> /var/log/cloud-user-script.log 2>&1\n",
+ 
+          "# remove current puppet certificate, they will be regenerated with correct alt_names\n",
+          "find $(puppet master --configprint ssldir) -name \"$(puppet master --configprint certname).pem\" -delete >> /var/log/cloud-user-script.log 2>&1\n",
+          "service puppetmaster restart >> /var/log/cloud-user-script.log 2>&1\n",
+ 
+          "# full puppet run to ensure server is completely created\n",
+          "puppet agent --server ", { "Ref": "DNSName" }, " -t >> /var/log/cloud-user-script.log 2>&1\n"
+        ]]}}
+      }
+    },
+
+    "PuppetmasterDNS": {
+      "Type" : "AWS::Route53::RecordSet",
+      "Properties" : {
+        "HostedZoneName" : { "Ref" : "DNSHostedZoneName" },
+        "Comment" : "Puppetmaster DNS entry",
+        "Name" : { "Fn::Join" : [ "", [ { "Ref": "DNSName" }, "."]] },
+        "Type" : "A",
+        "TTL" : "300",
+        "ResourceRecords" : [
+          { "Fn::GetAtt" : [ "Puppetmaster", "PublicIp" ] }
+        ]
+      }
+    },
+
+    "PuppetmasterDB" : {
+      "Type": "AWS::RDS::DBInstance",
+      "Properties": {
+        "DBName"            : { "Ref" : "DBName" },
+        "Engine"            : "MySQL",
+        "MasterUsername"    : { "Ref" : "DBUsername" },
+        "DBInstanceClass"   : { "Ref" : "DBClass" },
+        "DBSecurityGroups"  : [{ "Ref" : "PuppetDBSecurityGroup" }],
+        "AllocatedStorage"  : { "Ref" : "DBAllocatedStorage" },
+        "MasterUserPassword": { "Ref" : "DBPassword" }
+      }
+    },
+
+    "PuppetDBSecurityGroup": {
+      "Type": "AWS::RDS::DBSecurityGroup",
+      "Properties": {
+        "DBSecurityGroupIngress": { "EC2SecurityGroupName": { "Ref": "PuppetmasterSecurityGroup"} },
+        "GroupDescription"      : "Frontend Access"
+      }
+    },
+
+    "PuppetmasterSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Enable HTTP access via port 80 and SSH access",
+        "SecurityGroupIngress" : [
+          {"IpProtocol" : "tcp", "FromPort" : "8140", "ToPort" : "8140", "CidrIp" : "0.0.0.0/0"},
+          {"IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" : "0.0.0.0/0"}
+        ]
+      }
+    }
+  }
+}
