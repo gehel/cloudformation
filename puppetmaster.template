@@ -23,6 +23,16 @@
       "ConstraintDescription" : "can contain only letters and point."
     }, 
     
+    "DNSInternalName": {
+      "Description" : "DNS name of the puppet master from inside Amazon network",
+      "Type": "String",
+      "Default" : "puppet.int.aws.ledcom.ch", 
+      "MinLength": "1",
+      "MaxLength": "255",
+      "AllowedPattern" : "[a-zA-Z\\.]*",
+      "ConstraintDescription" : "can contain only letters and point."
+    }, 
+    
     "DNSHostedZoneName": {
       "Description" : "DNS zone in which to create entries",
       "Type": "String",
@@ -199,7 +209,7 @@
           "class { 'puppet':\n",
           "  mode          => 'server',\n",
           "  server        => '", { "Ref": "DNSName" }, "',\n",
-          "  dns_alt_names => '", { "Ref": "DNSName" }, "',\n",
+          "  dns_alt_names => '", { "Ref": "DNSName" }, ", ", { "Ref": "DNSInternalName" }, "',\n",
           "  environment   => 'production',\n",
           "  manifest_path => '\\$confdir/environments/\\$environment/site/site.pp',\n",
           "  module_path   => '\\$confdir/environments/\\$environment/modules:\\$confdir/environments/\\$environment/dist',\n",
@@ -250,6 +260,20 @@
         "TTL" : "300",
         "ResourceRecords" : [
           { "Fn::GetAtt" : [ "Puppetmaster", "PublicIp" ] }
+        ]
+      }
+    },
+
+    "PuppetmasterInternalDNS": {
+      "Type" : "AWS::Route53::RecordSet",
+      "Properties" : {
+        "HostedZoneName" : { "Ref" : "DNSHostedZoneName" },
+        "Comment" : "Puppetmaster DNS entry from inside Amazon network",
+        "Name" : { "Fn::Join" : [ "", [ { "Ref": "DNSInternalName" }, "."]] },
+        "Type" : "A",
+        "TTL" : "300",
+        "ResourceRecords" : [
+          { "Fn::GetAtt" : [ "Puppetmaster", "PrivateIp" ] }
         ]
       }
     },
