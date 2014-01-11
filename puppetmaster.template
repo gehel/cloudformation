@@ -247,6 +247,7 @@
  
           "# full puppet run to ensure server is completely created\n",
           "puppet agent --server ", { "Ref": "DNSName" }, " -t >> /var/log/cloud-user-script.log 2>&1\n",
+          "# run again now the the puppet master is fully up to date\n",
           "puppet agent -t >> /var/log/cloud-user-script.log 2>&1\n",
 
           "# restart services\n",
