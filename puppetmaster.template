@@ -247,6 +247,7 @@
  
           "# full puppet run to ensure server is completely created\n",
           "puppet agent --server ", { "Ref": "DNSName" }, " -t >> /var/log/cloud-user-script.log 2>&1\n",
+          "puppet agent -t >> /var/log/cloud-user-script.log 2>&1\n",
 
           "# restart services\n",
           "service puppetmaster stop >> /var/log/cloud-user-script.log 2>&1\n",
