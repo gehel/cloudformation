@@ -110,7 +110,7 @@
       "Description" : "The Puppet database account password",
       "Type": "String",
       "MinLength": "8",
-      "MaxLength": "41",
+      "MaxLength": "255",
       "AllowedPattern" : "[a-zA-Z0-9]*",
       "ConstraintDescription" : "must contain only alphanumeric characters."
     },
@@ -240,12 +240,19 @@
           "puppet apply --modulepath=/etc/puppet/environments/production/modules /tmp/puppet.pp >> /var/log/cloud-user-script.log 2>&1\n",
           "rm /tmp/puppet.pp >> /var/log/cloud-user-script.log 2>&1\n",
  
-          "# remove current puppet certificate, they will be regenerated with correct alt_names\n",
-          "find $(puppet master --configprint ssldir) -name \"$(puppet master --configprint certname).pem\" -delete >> /var/log/cloud-user-script.log 2>&1\n",
+          "# remove current puppet certificate, and regenerated with correct alt_names\n",
+          "puppet cert clean --all ", { "Ref": "DNSName" }, " >> /var/log/cloud-user-script.log 2>&1\n",
+          "puppet ca generate --dns-alt-names ", { "Ref": "DNSInternalName" }, " ", { "Ref": "DNSName" }, "  >> /var/log/cloud-user-script.log 2>&1\n",
           "service puppetmaster restart >> /var/log/cloud-user-script.log 2>&1\n",
  
           "# full puppet run to ensure server is completely created\n",
-          "puppet agent --server ", { "Ref": "DNSName" }, " -t >> /var/log/cloud-user-script.log 2>&1\n"
+          "puppet agent --server ", { "Ref": "DNSName" }, " -t >> /var/log/cloud-user-script.log 2>&1\n",
+
+          "# restart services\n",
+          "service puppetmaster stop >> /var/log/cloud-user-script.log 2>&1\n",
+          "service apache2 restart >> /var/log/cloud-user-script.log 2>&1\n",
+
+          "echo 'Installation completed' >> /var/log/cloud-user-script.log 2>&1\n"
         ]]}}
       }
     },
