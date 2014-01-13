@@ -22,7 +22,7 @@
       "AllowedPattern" : "[a-zA-Z\\.]*",
       "ConstraintDescription" : "can contain only letters and point."
     }, 
-    
+
     "DNSInternalName": {
       "Description" : "DNS name of the puppet master from inside Amazon network",
       "Type": "String",
@@ -31,8 +31,8 @@
       "MaxLength": "255",
       "AllowedPattern" : "[a-zA-Z\\.]*",
       "ConstraintDescription" : "can contain only letters and point."
-    }, 
-    
+    },
+
     "DNSHostedZoneName": {
       "Description" : "DNS zone in which to create entries",
       "Type": "String",
@@ -241,12 +241,13 @@
           "rm /tmp/puppet.pp >> /var/log/cloud-user-script.log 2>&1\n",
  
           "# remove current puppet certificate, and regenerated with correct alt_names\n",
-          "puppet cert clean --all ", { "Ref": "DNSName" }, " >> /var/log/cloud-user-script.log 2>&1\n",
-          "puppet ca generate --dns-alt-names ", { "Ref": "DNSInternalName" }, " ", { "Ref": "DNSName" }, "  >> /var/log/cloud-user-script.log 2>&1\n",
+          "puppet cert clean --all ", { "Ref": "DNSInternalName" }, " >> /var/log/cloud-user-script.log 2>&1\n",
+          "puppet ca generate --dns-alt-names ", { "Ref": "DNSName" }, " ", { "Ref": "DNSInternalName" }, "  >> /var/log/cloud-user-script.log 2>&1\n",
           "service puppetmaster restart >> /var/log/cloud-user-script.log 2>&1\n",
  
           "# full puppet run to ensure server is completely created\n",
           "puppet agent --server ", { "Ref": "DNSName" }, " -t >> /var/log/cloud-user-script.log 2>&1\n",
+          "service puppetmaster restart >> /var/log/cloud-user-script.log 2>&1\n",
           "# run again now the the puppet master is fully up to date\n",
           "puppet agent -t >> /var/log/cloud-user-script.log 2>&1\n",
 
