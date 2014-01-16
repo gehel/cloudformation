@@ -74,54 +74,6 @@
       "Default" : "m1.small",
       "AllowedValues" : [ "t1.micro","m1.small","m1.medium","m1.large","m1.xlarge","m2.xlarge","m2.2xlarge","m2.4xlarge","m3.xlarge","m3.2xlarge","c1.medium","c1.xlarge","cc1.4xlarge","cc2.8xlarge","cg1.4xlarge"],
       "ConstraintDescription" : "must be a valid EC2 instance type."
-    },
-
-    "DBClass" : {
-      "Default" : "db.m1.small",
-      "Description" : "Database instance class",
-      "Type" : "String",
-      "AllowedValues" : [ "db.m1.small", "db.m1.large", "db.m1.xlarge", "db.m2.xlarge", "db.m2.2xlarge", "db.m2.4xlarge" ],
-      "ConstraintDescription" : "must select a valid database instance type."
-    },
-
-    "DBName" : {
-      "Default": "puppet",
-      "Description" : "The Puppet database name",
-      "Type": "String",
-      "MinLength": "1",
-      "MaxLength": "64",
-      "AllowedPattern" : "[a-zA-Z][a-zA-Z0-9]*",
-      "ConstraintDescription" : "must begin with a letter and contain only alphanumeric characters."
-    },
-
-    "DBUsername" : {
-      "Default": "puppet",
-      "Description" : "The Puppet database account username",
-      "Type": "String",
-      "MinLength": "1",
-      "MaxLength": "16",
-      "AllowedPattern" : "[a-zA-Z][a-zA-Z0-9]*",
-      "ConstraintDescription" : "must begin with a letter and contain only alphanumeric characters."
-    },
-
-    "DBPassword" : {
-      "Default": "password",
-      "NoEcho": "true",
-      "Description" : "The Puppet database account password",
-      "Type": "String",
-      "MinLength": "8",
-      "MaxLength": "255",
-      "AllowedPattern" : "[a-zA-Z0-9]*",
-      "ConstraintDescription" : "must contain only alphanumeric characters."
-    },
-
-    "DBAllocatedStorage" : {
-      "Default": "5",
-      "Description" : "The size of the database (Gb)",
-      "Type": "Number",
-      "MinValue": "5",
-      "MaxValue": "1024",
-      "ConstraintDescription" : "must be between 5 and 1024Gb."
     }
   },
   
@@ -175,18 +127,10 @@
         "UserData"       : { "Fn::Base64" : { "Fn::Join" : ["", [
           "#!/bin/bash\n",
           
-          "# create a few needed files >> /var/log/cloud-user-script.log 2>&1\n",
+          "echo 'create a few needed files' >> /var/log/cloud-user-script.log 2>&1\n",
           "mkdir -p /etc/facter/facts.d/ >> /var/log/cloud-user-script.log 2>&1\n",
           "cat > /etc/facter/facts.d/server_role.txt << EOF\n",
           "server_role=puppetmaster\n",
-          "EOF\n",
-
-          "cat > /etc/facter/facts.d/puppet_database.txt << EOF\n",
-          "puppetmaster_db_name=", { "Ref": "DBName" }, "\n",
-          "puppetmaster_db_user=", { "Ref": "DBUsername" }, "\n",
-          "puppetmaster_db_password=", { "Ref": "DBPassword" }, "\n",
-          "puppetmaster_db_server=", {"Fn::GetAtt" : ["PuppetmasterDB", "Endpoint.Address"]}, "\n",
-          "puppetmaster_db_port=", {"Fn::GetAtt" : ["PuppetmasterDB", "Endpoint.Port"]}, "\n",
           "EOF\n",
 
           "cat > /etc/r10k.yaml << EOF\n",
@@ -205,55 +149,43 @@
 
           "echo ", { "Ref": "HieraPublicKey" }, " | base64 -d  > /etc/puppet/public_key.pkcs7.pem\n",
 
-          "cat > /tmp/puppet.pp << EOF\n",
-          "class { 'puppet':\n",
-          "  mode          => 'server',\n",
-          "  server        => '", { "Ref": "DNSName" }, "',\n",
-          "  dns_alt_names => '", { "Ref": "DNSName" }, ", ", { "Ref": "DNSInternalName" }, "',\n",
-          "  environment   => 'production',\n",
-          "  manifest_path => '\\$confdir/environments/\\$environment/site/site.pp',\n",
-          "  module_path   => '\\$confdir/environments/\\$environment/modules:\\$confdir/environments/\\$environment/dist',\n",
-          "}\n",
-          "EOF\n",
-
           "echo \"127.0.0.1       ", { "Ref": "DNSName" }, "\" >> /etc/hosts\n",
 
-          "# make sure everything is up to date\n",
+          "echo 'make sure everything is up to date' >> /var/log/cloud-user-script.log 2>&1\n",
           "wget http://apt.puppetlabs.com/puppetlabs-release-wheezy.deb >> /var/log/cloud-user-script.log 2>&1\n",
           "dpkg -i puppetlabs-release-wheezy.deb >> /var/log/cloud-user-script.log 2>&1\n",
           "apt-get update >> /var/log/cloud-user-script.log 2>&1\n",
           "apt-get dist-upgrade -y >> /var/log/cloud-user-script.log 2>&1\n",
- 
-          "# install puppet and dependencies\n",
+
+          "echo 'install puppet and dependencies' >> /var/log/cloud-user-script.log 2>&1\n",
           "/usr/sbin/locale-gen enUS.utf8\n",
           "export LANGUAGE=en_US.utf8\n",
           "export LC_ALL=en_US.utf8\n",
           "export LANG=en_US.utf8\n",
           "export >> /var/log/cloud-user-script.log\n",
-          "apt-get install -y unattended-upgrades puppetmaster git rubygems ruby-systemu ruby-log4r >> /var/log/cloud-user-script.log 2>&1\n",
+          "apt-get install -y unattended-upgrades puppetmaster git rubygems ruby-systemu ruby-log4r libsystemu-ruby liblog4r-ruby >> /var/log/cloud-user-script.log 2>&1\n",
           "gem install r10k >> /var/log/cloud-user-script.log 2>&1\n",
+          "gem install hiera-eyaml >> /var/log/cloud-user-script.log 2>&1\n",
  
           "/usr/local/bin/r10k deploy environment >> /var/log/cloud-user-script.log 2>&1\n",
  
-          "# puppet run to ensure basic configuration >> /var/log/cloud-user-script.log 2>&1\n",
+          "echo 'remove current puppet certificate, and regenerated with correct alt_names' >> /var/log/cloud-user-script.log 2>&1\n",
           "service puppetmaster stop >> /var/log/cloud-user-script.log 2>&1\n",
-          "puppet apply --modulepath=/etc/puppet/environments/production/modules /tmp/puppet.pp >> /var/log/cloud-user-script.log 2>&1\n",
-          "rm /tmp/puppet.pp >> /var/log/cloud-user-script.log 2>&1\n",
- 
-          "# remove current puppet certificate, and regenerated with correct alt_names\n",
           "puppet cert clean --all ", { "Ref": "DNSInternalName" }, " >> /var/log/cloud-user-script.log 2>&1\n",
           "puppet ca generate --dns-alt-names ", { "Ref": "DNSName" }, " ", { "Ref": "DNSInternalName" }, "  >> /var/log/cloud-user-script.log 2>&1\n",
-          "service puppetmaster restart >> /var/log/cloud-user-script.log 2>&1\n",
- 
-          "# full puppet run to ensure server is completely created\n",
-          "puppet agent --server ", { "Ref": "DNSName" }, " -t >> /var/log/cloud-user-script.log 2>&1\n",
-          "service puppetmaster restart >> /var/log/cloud-user-script.log 2>&1\n",
-          "# run again now the the puppet master is fully up to date\n",
-          "puppet agent -t >> /var/log/cloud-user-script.log 2>&1\n",
 
-          "# restart services\n",
+          "service puppetmaster start >> /var/log/cloud-user-script.log 2>&1\n",
           "service puppetmaster stop >> /var/log/cloud-user-script.log 2>&1\n",
-          "service apache2 restart >> /var/log/cloud-user-script.log 2>&1\n",
+ 
+          "echo 'puppet run to ensure basic configuration' >> /var/log/cloud-user-script.log 2>&1\n",
+          "puppet apply",
+          "  --modulepath=/etc/puppet/environments/production/modules:/etc/puppet/environments/production/dist",
+          "  --hiera_config=/etc/puppet/environments/production/hiera.yaml",
+          "  /etc/puppet/environments/production/site/site.pp >> /var/log/cloud-user-script.log 2>&1\n",
+
+          "echo 'full puppet run to ensure server is completely created' >> /var/log/cloud-user-script.log 2>&1\n",
+          "sleep 30 2>&1\n",
+          "puppet agent -t >> /var/log/cloud-user-script.log 2>&1\n",
 
           "echo 'Installation completed' >> /var/log/cloud-user-script.log 2>&1\n"
         ]]}}
@@ -285,27 +217,6 @@
         "ResourceRecords" : [
           { "Fn::GetAtt" : [ "Puppetmaster", "PrivateIp" ] }
         ]
-      }
-    },
-
-    "PuppetmasterDB" : {
-      "Type": "AWS::RDS::DBInstance",
-      "Properties": {
-        "DBName"            : { "Ref" : "DBName" },
-        "Engine"            : "MySQL",
-        "MasterUsername"    : { "Ref" : "DBUsername" },
-        "DBInstanceClass"   : { "Ref" : "DBClass" },
-        "DBSecurityGroups"  : [{ "Ref" : "PuppetDBSecurityGroup" }],
-        "AllocatedStorage"  : { "Ref" : "DBAllocatedStorage" },
-        "MasterUserPassword": { "Ref" : "DBPassword" }
-      }
-    },
-
-    "PuppetDBSecurityGroup": {
-      "Type": "AWS::RDS::DBSecurityGroup",
-      "Properties": {
-        "DBSecurityGroupIngress": { "EC2SecurityGroupName": { "Ref": "PuppetmasterSecurityGroup"} },
-        "GroupDescription"      : "Frontend Access"
       }
     },
 
