@@ -3,7 +3,7 @@
   "Description" : "A template to create a single Puppet Master",
   "Parameters" : {
 
-  	"KeyName": {
+    "KeyName": {
       "Description" : "Name of an existing EC2 KeyPair to enable SSH access to the instances",
       "Type": "String",
       "Default" : "global", 
@@ -50,7 +50,7 @@
       "MinLength": "1",
       "MaxLength": "255"
     },
-    
+
     "HieraPrivateKey": {
       "Description" : "Hiera private key, encoded with 'base64 -w 0'",
       "NoEcho": "true",
@@ -68,6 +68,15 @@
       "MaxLength": "4000"
     }, 
     
+    "SSHPrivateKey": {
+      "Description" : "SSH private key, encoded with 'base64 -w 0'",
+      "NoEcho": "true",
+      "Type": "String",
+      "Default" : "", 
+      "MinLength": "0",
+      "MaxLength": "4000"
+    },
+
     "InstanceType" : {
       "Description" : "WebServer EC2 instance type",
       "Type" : "String",
@@ -142,12 +151,16 @@
           ":purgedirs:\n",
           "  - '/etc/puppet/environments'\n",
           "EOF\n",
-          
+
           "mkdir -p /etc/puppet/ >> /var/log/cloud-user-script.log 2>&1\n",
           
           "echo ", { "Ref": "HieraPrivateKey" }, " |  base64 -d > /etc/puppet/private_key.pkcs7.pem\n",
 
           "echo ", { "Ref": "HieraPublicKey" }, " | base64 -d  > /etc/puppet/public_key.pkcs7.pem\n",
+
+          "echo ", { "Ref": "SSHPrivateKey" }, " | base64 -d  > /root/.ssh/id_rsa\n",
+          "chmod 600 /root/.ssh/id_rsa\n",
+          "ssh-keyscan github.com >> /root/.ssh/known_hosts\n",
 
           "echo \"127.0.0.1       ", { "Ref": "DNSName" }, "\" >> /etc/hosts\n",
 
@@ -167,7 +180,7 @@
           "gem install r10k >> /var/log/cloud-user-script.log 2>&1\n",
           "gem install hiera-eyaml >> /var/log/cloud-user-script.log 2>&1\n",
  
-          "/usr/local/bin/r10k deploy environment >> /var/log/cloud-user-script.log 2>&1\n",
+          "/usr/local/bin/r10k -v info deploy environment >> /var/log/cloud-user-script.log 2>&1\n",
  
           "echo 'remove current puppet certificate, and regenerated with correct alt_names' >> /var/log/cloud-user-script.log 2>&1\n",
           "service puppetmaster stop >> /var/log/cloud-user-script.log 2>&1\n",
