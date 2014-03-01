@@ -177,17 +177,11 @@
           "export LANG=en_US.utf8\n",
           "export >> /var/log/cloud-user-script.log\n",
           "apt-get install -y unattended-upgrades puppetmaster git rubygems ruby-systemu ruby-log4r libsystemu-ruby liblog4r-ruby >> /var/log/cloud-user-script.log 2>&1\n",
-          "gem install r10k >> /var/log/cloud-user-script.log 2>&1\n",
-          "gem install hiera-eyaml >> /var/log/cloud-user-script.log 2>&1\n",
+          "gem install --no-rdoc --no-ri r10k >> /var/log/cloud-user-script.log 2>&1\n",
+          "gem install --no-rdoc --no-ri hiera-eyaml >> /var/log/cloud-user-script.log 2>&1\n",
  
           "/usr/local/bin/r10k -v info deploy environment >> /var/log/cloud-user-script.log 2>&1\n",
  
-          "echo 'remove current puppet certificate, and regenerated with correct alt_names' >> /var/log/cloud-user-script.log 2>&1\n",
-          "service puppetmaster stop >> /var/log/cloud-user-script.log 2>&1\n",
-          "puppet cert clean --all ", { "Ref": "DNSInternalName" }, " >> /var/log/cloud-user-script.log 2>&1\n",
-          "puppet ca generate --dns-alt-names ", { "Ref": "DNSName" }, " ", { "Ref": "DNSInternalName" }, "  >> /var/log/cloud-user-script.log 2>&1\n",
-
-          "service puppetmaster start >> /var/log/cloud-user-script.log 2>&1\n",
           "service puppetmaster stop >> /var/log/cloud-user-script.log 2>&1\n",
  
           "echo 'puppet run to ensure basic configuration' >> /var/log/cloud-user-script.log 2>&1\n",
